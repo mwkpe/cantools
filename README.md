@@ -3,7 +3,7 @@ A small program for transmitting a CAN message
 
 Description
 ---
-A command line program for the single and cyclic transmission of a CAN message.<br>
+A command line program for the single or cyclic transmission of a CAN message.
 
 Build
 ---
@@ -13,7 +13,7 @@ Usage
 ---
 | Option   | Description  |            |
 | -------- | ------------ | ---------- |
-| --id     | Hex message ID (0-7ff) | required |
+| --id     | Hex frame ID (0-7ff) | required |
 | --data   | Hex data string (size must be even and <= 16) | optional (default "00") |
 | --cycle  | Cycle time (ms), -1 for sending frame once | optional (default -1) |
 | --device | CAN device name | optional (default "can0") |

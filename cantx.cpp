@@ -35,10 +35,11 @@ can_frame parse_frame(const std::string& id, const std::string& data)
   if (frame.can_dlc > CAN_MAX_DLC)
     frame.can_dlc = CAN_MAX_DLC;
   auto d = std::strtoull(data.c_str(), nullptr, 16);
-  for (int i=0; i<frame.can_dlc; ++i) {
-    // Reversing order of bytes so a 010203 string is 010203 in the data field
-    frame.data[i] = d >> (frame.can_dlc - (i + 1)) * 8;
-  }
+  // Reversing order of bytes so a 010203 string is 010203 in the data field
+  int n = 0;
+  int i = frame.can_dlc;
+  while (i--)
+    frame.data[i] = d >> n++ * 8;  // Place lowest byte using highest index
   return frame;
 }
 
@@ -149,7 +150,7 @@ int main(int argc, char **argv)
   std::cout << '\n';
   print_frame(frame);
   if (cycle_time > 0)
-  std::cout << "Press enter to stop" << std::endl;
+    std::cout << "Press enter to stop" << std::endl;
 
   std::atomic<bool> stop_transmission{false};
   std::thread transmitter{&send_frame, std::ref(stop_transmission), device, frame, cycle_time};

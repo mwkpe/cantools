@@ -1,4 +1,4 @@
-/* A small command line program for the single and cyclic transmission
+/* A small command line program for the single or cyclic transmission
    of a CAN message adapted from cansend of the linux can utils
  */
 
@@ -14,6 +14,7 @@
 #include <string>
 #include <cstring>
 #include <tuple>
+#include <chrono>
 #include <thread>
 #include <atomic>
 #include <stdexcept>

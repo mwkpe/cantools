@@ -1,5 +1,5 @@
-/* A small command line program for the cyclic transmission of a single
-   CAN message adapted from the linux can utils' cansend.c file
+/* A small command line program for the single and cyclic transmission
+   of a CAN message adapted from cansend of the linux can utils
  */
 
 
@@ -44,8 +44,8 @@ can_frame parse_frame(const std::string& id, const std::string& data)
 
 void print_frame(const can_frame& frame)
 {
-  std::cout << "id: " << std::hex << frame.can_id << std::dec << "\ndlc: "
-      << static_cast<int>(frame.can_dlc) << " bytes\ndata: " << std::hex << std::setfill('0');
+  std::cout << "id: " << std::hex << frame.can_id << std::dec << ", dlc: "
+      << static_cast<int>(frame.can_dlc) << ", data: " << std::hex << std::setfill('0');
   for (int i=0; i<frame.can_dlc; i++) {
     std::cout << std::setw(2) << static_cast<int>(frame.data[i]) << ' ';
   }
@@ -82,14 +82,18 @@ void send_frame(std::atomic<bool>& stop_transmission, const std::string device,
     return;
   }
 
-  while (!stop_transmission.load())
+  if (cycle_time < 0)
+    stop_transmission.store(true);
+
+  do
   {
     if (write(s.id, &frame, sizeof(frame)) != sizeof(frame)) {
       std::cerr << "Socket write error, aborted" << std::endl;
       return;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(cycle_time));
-  }
+    if (cycle_time > 0)
+      std::this_thread::sleep_for(std::chrono::milliseconds(cycle_time));
+  } while (!stop_transmission.load());
 }
 
 
@@ -105,7 +109,7 @@ std::tuple<std::string, can_frame, int> parse_args(int argc, char **argv)
     options.add_options()
       ("id", "Hex message id", cxxopts::value<std::string>(id))
       ("data", "Hex data string", cxxopts::value<std::string>(data)->default_value("00"))
-      ("cycle", "Cycle time in ms", cxxopts::value<int>(cycle_time)->default_value("100"))
+      ("cycle", "Cycle time in ms", cxxopts::value<int>(cycle_time)->default_value("-1"))
       ("device", "CAN device name", cxxopts::value<std::string>(device)->default_value("can0"))
     ;
     options.parse(argc, argv);
@@ -138,14 +142,19 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  std::cout << "Transmitting frame on " << device << " each " << cycle_time << " ms...\n";
+  std::cout << "Transmitting frame on " << device;
+  if (cycle_time > 0)
+    std::cout << " each " << cycle_time << " ms...";
+  std::cout << '\n';
   print_frame(frame);
-  std::cout << "Press enter to stop the program" << std::endl;
+  if (cycle_time > 0)
+  std::cout << "Press enter to stop" << std::endl;
 
   std::atomic<bool> stop_transmission{false};
   std::thread transmitter{&send_frame, std::ref(stop_transmission), device, frame, cycle_time};
 
-  std::cin.ignore();
+  if (cycle_time > 0)
+    std::cin.ignore();
 
   stop_transmission.store(true);
   transmitter.join();

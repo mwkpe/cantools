@@ -52,11 +52,11 @@ void print_frame(const can_frame& frame)
     std::cout << std::setw(2) << static_cast<int>(frame.data[i]) << ' ';
   }
   std::cout << '\n';
-  std::cout.copyfmt(std::ios(nullptr));  // Reset format state
+  std::cout.copyfmt(std::ios{nullptr});  // Reset format state
 }
 
 
-void send_frame(std::atomic<bool>& stop_transmission, const std::string device,
+void send_frame(std::atomic<bool>& transmit_cyclical, const std::string device,
     can_frame frame, int cycle_time)
 {
   sockaddr_can addr;
@@ -84,9 +84,6 @@ void send_frame(std::atomic<bool>& stop_transmission, const std::string device,
     return;
   }
 
-  if (cycle_time < 0)
-    stop_transmission.store(true);
-
   do
   {
     if (write(s.id, &frame, sizeof(frame)) != sizeof(frame)) {
@@ -95,7 +92,7 @@ void send_frame(std::atomic<bool>& stop_transmission, const std::string device,
     }
     if (cycle_time > 0)
       std::this_thread::sleep_for(std::chrono::milliseconds(cycle_time));
-  } while (!stop_transmission.load());
+  } while (transmit_cyclical.load());
 }
 
 
@@ -144,21 +141,22 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  std::atomic<bool> transmit_cyclical{cycle_time > 0};
+
   std::cout << "Transmitting frame on " << device;
-  if (cycle_time > 0)
+  if (transmit_cyclical.load())
     std::cout << " each " << cycle_time << " ms...";
   std::cout << '\n';
   print_frame(frame);
-  if (cycle_time > 0)
+  if (transmit_cyclical.load())
     std::cout << "Press enter to stop" << std::endl;
 
-  std::atomic<bool> stop_transmission{false};
-  std::thread transmitter{&send_frame, std::ref(stop_transmission), device, frame, cycle_time};
+  std::thread transmitter{&send_frame, std::ref(transmit_cyclical), device, frame, cycle_time};
 
-  if (cycle_time > 0)
-    std::cin.ignore();
+  if (transmit_cyclical.load())
+    std::cin.ignore();  // Wait in main thread
 
-  stop_transmission.store(true);
+  transmit_cyclical.store(false);
   transmitter.join();
 
   return 0;

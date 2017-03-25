@@ -56,8 +56,8 @@ void print_frame(const can_frame& frame)
 }
 
 
-void send_frame(std::atomic<bool>& transmit_cyclical, const std::string device,
-    can_frame frame, int cycle_time)
+void send_frame(std::atomic<bool>& transmit_cyclical, const std::string device, can_frame frame,
+    int cycle_time)
 {
   sockaddr_can addr;
   ifreq ifr;
@@ -90,8 +90,9 @@ void send_frame(std::atomic<bool>& transmit_cyclical, const std::string device,
       std::cerr << "Socket write error, aborted" << std::endl;
       return;
     }
-    if (cycle_time > 0)
+    if (cycle_time > 0) {
       std::this_thread::sleep_for(std::chrono::milliseconds(cycle_time));
+    }
   } while (transmit_cyclical.load());
 }
 
@@ -104,7 +105,8 @@ std::tuple<std::string, can_frame, int> parse_args(int argc, char **argv)
   try {
     std::string id;
     std::string data;
-    cxxopts::Options options("cantx", "CAN message transmitter");
+
+    cxxopts::Options options{"cantx", "CAN message transmitter"};
     options.add_options()
       ("id", "Hex message id", cxxopts::value<std::string>(id))
       ("data", "Hex data string", cxxopts::value<std::string>(data)->default_value("00"))
@@ -112,17 +114,18 @@ std::tuple<std::string, can_frame, int> parse_args(int argc, char **argv)
       ("device", "CAN device name", cxxopts::value<std::string>(device)->default_value("can0"))
     ;
     options.parse(argc, argv);
+
     if (options.count("id") == 0) {
-      throw std::runtime_error("Message ID must be specified, use --id option");
+      throw std::runtime_error{"Message ID must be specified, use --id option"};
     }
     if (data.size() % 2 || data.size() > 16) {
-      throw std::runtime_error("Data size error, size must be even and <= 16");
+      throw std::runtime_error{"Data size error, size must be even and <= 16"};
     }
 
     return std::make_tuple(std::move(device), parse_frame(id, data), cycle_time);
   }
   catch (const cxxopts::OptionException& e) {
-    throw std::runtime_error(e.what());
+    throw std::runtime_error{e.what()};
   }
 }
 

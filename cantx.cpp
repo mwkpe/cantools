@@ -1,18 +1,8 @@
-/* A small command line program for the single or cyclic transmission
-   of a CAN message adapted from cansend of the linux can utils
+/* A small command line program for a one-time or cyclic transmission of a single frame
  */
 
 
-#include <net/if.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
-#include <linux/can.h>
-#include <linux/can/raw.h>
-
 #include <string>
-#include <cstring>
 #include <tuple>
 #include <chrono>
 #include <thread>
@@ -23,10 +13,10 @@
 #include <ios>
 
 #include "cxxopts.hpp"
-#include "open_socket.h"
+#include "cansocket.h"
 
 
-can_frame parse_frame(const std::string& id, const std::string& data)
+can_frame build_frame(const std::string& id, const std::string& data)
 {
   // Invalid inputs will result in id and data set to 0
   can_frame frame;
@@ -56,38 +46,22 @@ void print_frame(const can_frame& frame)
 }
 
 
-void send_frame(std::atomic<bool>& transmit_cyclical, const std::string device, can_frame frame,
+void transmit_frame(std::atomic<bool>& transmit_cyclical, const std::string device, can_frame frame,
     int cycle_time)
 {
-  sockaddr_can addr;
-  ifreq ifr;
-  open_socket s{socket(PF_CAN, SOCK_RAW, CAN_RAW)};
-
-  if (s.id < 0) {
-    std::cerr << "Error while creating socket, aborted" << std::endl;
-    return;
+  can::socket can_socket;
+  try {
+    can_socket.open(device);
   }
-
-  addr.can_family = AF_CAN;
-
-  std::strcpy(ifr.ifr_name, device.c_str());
-  if (ioctl(s.id, SIOCGIFINDEX, &ifr) < 0) {
-    std::cerr << "Error retrieving interface index of device, aborted" << std::endl;
-    return;
-  }
-  addr.can_ifindex = ifr.ifr_ifindex;
-
-  setsockopt(s.id, SOL_CAN_RAW, CAN_RAW_FILTER, nullptr, 0);
-
-  if (bind(s.id, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
-    std::cerr << "Error while binding socket, aborted" << std::endl;
+  catch (const can::socket_error& e) {
+    std::cerr << e.what() << std::endl;
     return;
   }
 
   do
   {
-    if (write(s.id, &frame, sizeof(frame)) != sizeof(frame)) {
-      std::cerr << "Socket write error, aborted" << std::endl;
+    if (can_socket.transmit(&frame) != sizeof(frame)) {
+      std::cerr << "Socket write error" << std::endl;
       return;
     }
     if (cycle_time > 0) {
@@ -100,12 +74,11 @@ void send_frame(std::atomic<bool>& transmit_cyclical, const std::string device, 
 std::tuple<std::string, can_frame, int> parse_args(int argc, char **argv)
 {
   std::string device;
+  std::string id;
+  std::string data;
   int cycle_time;
 
   try {
-    std::string id;
-    std::string data;
-
     cxxopts::Options options{"cantx", "CAN message transmitter"};
     options.add_options()
       ("id", "Hex message id", cxxopts::value<std::string>(id))
@@ -122,7 +95,7 @@ std::tuple<std::string, can_frame, int> parse_args(int argc, char **argv)
       throw std::runtime_error{"Data size error, size must be even and <= 16"};
     }
 
-    return std::make_tuple(std::move(device), parse_frame(id, data), cycle_time);
+    return std::make_tuple(std::move(device), build_frame(id, data), cycle_time);
   }
   catch (const cxxopts::OptionException& e) {
     throw std::runtime_error{e.what()};
@@ -152,15 +125,17 @@ int main(int argc, char **argv)
   std::cout << '\n';
   print_frame(frame);
   if (transmit_cyclical.load())
-    std::cout << "Press enter to stop" << std::endl;
+    std::cout << "Press enter to stop..." << std::endl;
 
-  std::thread transmitter{&send_frame, std::ref(transmit_cyclical), device, frame, cycle_time};
+  std::thread transmitter{&transmit_frame, std::ref(transmit_cyclical), device, frame, cycle_time};
 
   if (transmit_cyclical.load())
     std::cin.ignore();  // Wait in main thread
 
+  std::cout << "Stopping transmitter..." << std::endl;
   transmit_cyclical.store(false);
   transmitter.join();
 
+  std::cout << "Program finished" << std::endl;
   return 0;
 }

@@ -30,7 +30,9 @@ void print_frames(std::atomic<bool>& stop, std::string device)
 {
   can::socket can_socket;
   try {
-    can_socket.open(device, 3);
+    can_socket.open(device);
+    can_socket.bind();
+    can_socket.set_receive_timeout(3);
   }
   catch (const can::socket_error& e) {
     std::cerr << e.what() << std::endl;

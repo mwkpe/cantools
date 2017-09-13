@@ -33,8 +33,11 @@ public:
   socket(socket&&) = delete;
   socket& operator=(socket&&) = delete;
 
-  void open(const std::string& device, time_t timeout = 0);
+  void open(const std::string& device);
   void close();
+
+  void bind();
+  void set_receive_timeout(time_t timeout);
 
   int transmit(const can_frame* frame);
   int receive(can_frame* frame);

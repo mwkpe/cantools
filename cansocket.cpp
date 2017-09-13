@@ -15,7 +15,7 @@
 #include <cstring>
 
 
-void can::socket::open(const std::string& device, time_t timeout)
+void can::socket::open(const std::string& device)
 {
   if (fd_ != -1)
     throw socket_error{"Already open"};
@@ -36,15 +36,20 @@ void can::socket::open(const std::string& device, time_t timeout)
   if (ioctl(fd_, SIOCGIFINDEX, &ifr) < 0)
     throw socket_error{"Error retrieving interface index"};
   addr_.can_ifindex = ifr.ifr_ifindex;
+}
 
-  if (timeout > 0) {
-    timeval tv;
-    tv.tv_sec = timeout;
-    tv.tv_usec = 0;
-    if (setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0)
-      throw socket_error{"Error setting receive timeout"};
+
+void can::socket::close()
+{
+  if (fd_ != -1) {
+    ::close(fd_);
+    reset();
   }
+}
 
+
+void can::socket::bind()
+{
   if (bind(fd_, reinterpret_cast<sockaddr*>(&addr_), sizeof(addr_)) < 0)
     throw socket_error{"Error while binding socket"};
 
@@ -55,12 +60,16 @@ void can::socket::open(const std::string& device, time_t timeout)
 }
 
 
-void can::socket::close()
+void can::socket::set_receive_timeout(time_t timeout)
 {
-  if (fd_ != -1) {
-    ::close(fd_);
-    reset();
-  }
+  if (timeout <= 0)
+    throw socket_error{"Timeout must be larger then 0"};
+
+  timeval tv;
+  tv.tv_sec = timeout;
+  tv.tv_usec = 0;
+  if (setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0)
+    throw socket_error{"Error setting receive timeout"};
 }
 
 

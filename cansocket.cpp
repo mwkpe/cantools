@@ -75,7 +75,7 @@ void can::socket::set_receive_timeout(time_t timeout)
 
 int can::socket::transmit(const can_frame* frame)
 {
-  return write(fd_, frame, sizeof(*frame));
+  return write(fd_, frame, sizeof(can_frame));
 }
 
 

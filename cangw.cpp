@@ -1,4 +1,4 @@
-/* A small command line program for routing frames from a CAN socket to an UDP socket
+/* A small command line program for routing frames between a CAN socket and an UDP socket
  */
 
 
@@ -18,58 +18,26 @@
 
 #include "cxxopts.hpp"
 #include "cansocket.h"
+#include "udpsocket.h"
 
 
-namespace
+void route_to_udp(can::socket& can_socket, udp::socket& udp_socket, std::atomic<bool>& stop)
 {
-
-
-struct fd_wrapper
-{
-  explicit fd_wrapper(int fd) : fd{fd} {};
-  ~fd_wrapper() { if (fd >= 0) close(fd); }
-
-  fd_wrapper(const fd_wrapper&) = delete;
-  fd_wrapper& operator=(const fd_wrapper&) = delete;
-  fd_wrapper(fd_wrapper&&) = delete;
-  fd_wrapper& operator=(fd_wrapper&&) = delete;
-  
-  int fd;
-};
-
-
-}  // namespace
-
-
-void route_frames(std::atomic<bool>& stop, std::string device, std::string ip, std::uint16_t port)
-{
-  can::socket can_socket;
-  try {
-    can_socket.open(device);
-    can_socket.bind();
-    can_socket.set_receive_timeout(3);
-  }
-  catch (const can::socket_error& e) {
-    std::cerr << e.what() << std::endl;
-    return;
-  }
-
-  fd_wrapper udp_socket{socket(AF_INET, SOCK_DGRAM, 0)};
-  sockaddr_in remote_addr;
-  remote_addr.sin_family = AF_INET;
-  if (inet_aton(ip.c_str(), &remote_addr.sin_addr) == 0) {
-    std::cerr << "Error resolving IP address" << std::endl;
-    return;
-  }
-  remote_addr.sin_port = htons(port);
-
   can_frame frame;
-
   while (!stop.load()) {
-    auto n = can_socket.receive(&frame);
-    if (n == CAN_MTU) {
-      sendto(udp_socket.fd, &frame, sizeof(frame), 0, reinterpret_cast<sockaddr*>(&remote_addr),
-          sizeof(remote_addr));
+    if (can_socket.receive(&frame) == sizeof(can_frame)) {
+      udp_socket.transmit(&frame);
+    }
+  }
+}
+
+
+void route_to_can(can::socket& can_socket, udp::socket& udp_socket, std::atomic<bool>& stop)
+{
+  can_frame frame;
+  while (!stop.load()) {
+    if (udp_socket.receive(&frame) == sizeof(can_frame)) {
+      can_socket.transmit(&frame);
     }
   }
 }
@@ -119,16 +87,33 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  std::cout << "Routing frames from " << can_device << " to " << remote_ip << ":"
+  can::socket can_socket;
+  udp::socket udp_socket;
+  try {
+    can_socket.open(can_device);
+    can_socket.bind();
+    can_socket.set_receive_timeout(3);
+    udp_socket.open(remote_ip, remote_port);
+    udp_socket.bind();
+    udp_socket.set_receive_timeout(3);
+  }
+  catch (const std::runtime_error& e) {
+    std::cerr << e.what() << std::endl;
+    return 1;
+  }
+
+  std::cout << "Routing frames between " << can_device << " and " << remote_ip << ":"
       << remote_port << "\nPress enter to stop..." << std::endl;
 
   std::atomic<bool> stop{false};
-  std::thread gateway{&route_frames, std::ref(stop), can_device, remote_ip, remote_port};
+  std::thread out{&route_to_udp, std::ref(can_socket), std::ref(udp_socket), std::ref(stop)};
+  std::thread in{&route_to_can, std::ref(can_socket), std::ref(udp_socket), std::ref(stop)};
   std::cin.ignore();  // Wait in main thread
 
   std::cout << "Stopping gateway..." << std::endl;
   stop.store(true);
-  gateway.join();
+  out.join();
+  in.join();
 
   std::cout << "Program finished" << std::endl;
   return 0;

@@ -2,8 +2,6 @@
 
 
 #include <net/if.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -50,7 +48,7 @@ void can::socket::close()
 
 void can::socket::bind()
 {
-  if (bind(fd_, reinterpret_cast<sockaddr*>(&addr_), sizeof(addr_)) < 0)
+  if (::bind(fd_, reinterpret_cast<sockaddr*>(&addr_), sizeof(addr_)) < 0)
     throw socket_error{"Error while binding socket"};
 
   msg_.msg_name = &addr_;

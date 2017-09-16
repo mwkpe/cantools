@@ -6,8 +6,8 @@
 #include <linux/can.h>
 #include <linux/can/raw.h>
 
-#include <stdexcept>
 #include <string>
+#include <stdexcept>
 
 
 namespace can
@@ -55,4 +55,4 @@ private:
 }  // namespace can
 
 
-#endif
+#endif  // CAN_SOCKET_H

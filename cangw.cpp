@@ -94,7 +94,7 @@ int main(int argc, char **argv)
     can_socket.bind();
     can_socket.set_receive_timeout(3);
     udp_socket.open(remote_ip, remote_port);
-    udp_socket.bind();
+    udp_socket.bind("0.0.0.0", remote_port);
     udp_socket.set_receive_timeout(3);
   }
   catch (const std::runtime_error& e) {

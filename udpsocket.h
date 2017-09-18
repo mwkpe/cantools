@@ -39,6 +39,7 @@ public:
   void close();
 
   void bind();
+  void bind(const std::string& ip, std::uint16_t port);
   void set_receive_timeout(time_t timeout);
 
   int transmit(const can_frame* frame);

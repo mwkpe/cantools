@@ -45,6 +45,21 @@ void udp::socket::bind()
 }
 
 
+void udp::socket::bind(const std::string& ip, std::uint16_t port)
+{
+  sockaddr_in addr;
+  addr.sin_family = AF_INET;
+
+  if (inet_aton(ip.c_str(), &addr.sin_addr) == 0)
+    throw socket_error{"Error resolving IP address"};
+
+  addr.sin_port = htons(port);
+
+  if (::bind(fd_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0)
+    throw socket_error{"Error while binding socket"};
+}
+
+
 void udp::socket::set_receive_timeout(time_t timeout)
 {
   if (timeout <= 0)
@@ -60,7 +75,7 @@ void udp::socket::set_receive_timeout(time_t timeout)
 
 int udp::socket::transmit(const can_frame* frame)
 {
-  return sendto(fd_, &frame, sizeof(can_frame), 0, reinterpret_cast<sockaddr*>(&addr_),
+  return sendto(fd_, frame, sizeof(can_frame), 0, reinterpret_cast<sockaddr*>(&addr_),
       sizeof(addr_));
 }
 

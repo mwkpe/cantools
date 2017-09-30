@@ -1,4 +1,4 @@
-CXX=g++-4.9
+CXX=g++
 CXXFLAGS=-std=c++14 -O3 -Wall -lpthread
 
 

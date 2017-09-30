@@ -2,19 +2,12 @@
  */
 
 
-#include <net/if.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
-#include <iostream>
+#include <cstdint>
 #include <string>
 #include <thread>
 #include <atomic>
 #include <stdexcept>
+#include <iostream>
 
 #include "cxxopts.hpp"
 #include "cansocket.h"

@@ -71,7 +71,7 @@ void transmit_frame(std::atomic<bool>& transmit_cyclical, const std::string devi
 }
 
 
-std::tuple<std::string, can_frame, int> parse_args(int argc, char **argv)
+std::tuple<std::string, can_frame, int> parse_args(int argc, char** argv)
 {
   std::string device;
   std::string id;
@@ -103,7 +103,7 @@ std::tuple<std::string, can_frame, int> parse_args(int argc, char **argv)
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   std::string device;
   can_frame frame;

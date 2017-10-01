@@ -38,7 +38,7 @@ void route_frames(std::atomic<bool>& stop, std::string device, std::string ip, s
 }
 
 
-std::tuple<std::string, std::string, std::uint16_t> parse_args(int argc, char **argv)
+std::tuple<std::string, std::string, std::uint16_t> parse_args(int argc, char** argv)
 {
   std::string can_device;
   std::string remote_ip;
@@ -68,7 +68,7 @@ std::tuple<std::string, std::string, std::uint16_t> parse_args(int argc, char **
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   std::string can_device;
   std::string remote_ip;

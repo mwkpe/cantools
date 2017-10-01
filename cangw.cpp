@@ -36,7 +36,7 @@ void route_to_can(can::socket& can_socket, udp::socket& udp_socket, std::atomic<
 }
 
 
-std::tuple<std::string, std::string, std::uint16_t> parse_args(int argc, char **argv)
+std::tuple<std::string, std::string, std::uint16_t> parse_args(int argc, char** argv)
 {
   std::string can_device;
   std::string remote_ip;
@@ -66,7 +66,7 @@ std::tuple<std::string, std::string, std::uint16_t> parse_args(int argc, char **
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   std::string can_device;
   std::string remote_ip;
@@ -84,7 +84,7 @@ int main(int argc, char **argv)
     udp_socket.set_receive_timeout(3);
   }
   catch (const std::runtime_error& e) {
-    std::cerr << "Error parsing command line options:\n" << e.what() << std::endl;
+    std::cerr << e.what() << std::endl;
     return 1;
   }
 

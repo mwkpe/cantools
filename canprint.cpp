@@ -59,7 +59,7 @@ void print_frames(std::atomic<bool>& stop, std::string device)
 }
 
 
-std::string parse_args(int argc, char **argv)
+std::string parse_args(int argc, char** argv)
 {
   std::string can_device;
 
@@ -77,7 +77,7 @@ std::string parse_args(int argc, char **argv)
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   std::string can_device;
 

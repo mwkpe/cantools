@@ -6,7 +6,7 @@ Description
 These tools can be used - and were developed - using a Raspberry Pi 3 with a PiCAN2 HAT.
 * __cantx__: one-time or cyclic transmission of a single frame
 * __canprint__: printing frames into the console
-* __cangw__: routing frames from CAN to UDP
+* __cangw__: routing frames between CAN and UDP
 
 Build
 ---

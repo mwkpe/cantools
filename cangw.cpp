@@ -71,18 +71,11 @@ int main(int argc, char **argv)
   std::string can_device;
   std::string remote_ip;
   std::uint16_t remote_port;
+  can::socket can_socket;
+  udp::socket udp_socket;
 
   try {
     std::tie(can_device, remote_ip, remote_port) = parse_args(argc, argv);
-  }
-  catch (const std::runtime_error& e) {
-    std::cerr << "Error parsing command line options:\n" << e.what() << std::endl;
-    return 1;
-  }
-
-  can::socket can_socket;
-  udp::socket udp_socket;
-  try {
     can_socket.open(can_device);
     can_socket.bind();
     can_socket.set_receive_timeout(3);
@@ -91,7 +84,7 @@ int main(int argc, char **argv)
     udp_socket.set_receive_timeout(3);
   }
   catch (const std::runtime_error& e) {
-    std::cerr << e.what() << std::endl;
+    std::cerr << "Error parsing command line options:\n" << e.what() << std::endl;
     return 1;
   }
 
@@ -99,14 +92,14 @@ int main(int argc, char **argv)
       << remote_port << "\nPress enter to stop..." << std::endl;
 
   std::atomic<bool> stop{false};
-  std::thread out{&route_to_udp, std::ref(can_socket), std::ref(udp_socket), std::ref(stop)};
-  std::thread in{&route_to_can, std::ref(can_socket), std::ref(udp_socket), std::ref(stop)};
+  std::thread to_udp{&route_to_udp, std::ref(can_socket), std::ref(udp_socket), std::ref(stop)};
+  std::thread to_can{&route_to_can, std::ref(can_socket), std::ref(udp_socket), std::ref(stop)};
   std::cin.ignore();  // Wait in main thread
 
   std::cout << "Stopping gateway..." << std::endl;
   stop.store(true);
-  out.join();
-  in.join();
+  to_udp.join();
+  to_can.join();
 
   std::cout << "Program finished" << std::endl;
   return 0;

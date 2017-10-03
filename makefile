@@ -2,7 +2,7 @@ CXX=g++
 CXXFLAGS=-std=c++14 -O3 -Wall -lpthread
 
 
-all: cantx canprint cangw cangw_simplex
+all: cantx canprint cangw cangw_simplex cansim
 
 
 cantx: cansocket.o cantx.o
@@ -21,6 +21,13 @@ cangw_simplex: cansocket.o udpsocket.o cangw_simplex.o
 	$(CXX) $(CXXFLAGS) cansocket.o udpsocket.o cangw_simplex.o -o cangw_simplex
 	@echo "Build finished"
 
+cansim: timer.o udpsocket.o cansim.o
+	$(CXX) $(CXXFLAGS) timer.o udpsocket.o cansim.o -o cansim
+	@echo "Build finished"
+
+
+timer.o: timer.cpp timer.h
+	$(CXX) -c $(CXXFLAGS) timer.cpp
 
 cansocket.o: cansocket.cpp cansocket.h
 	$(CXX) -c $(CXXFLAGS) cansocket.cpp

@@ -16,8 +16,8 @@
 
 void route_frames(std::atomic<bool>& stop, std::string device, std::string ip, std::uint16_t port)
 {
-  can::socket can_socket;
-  udp::socket udp_socket;
+  can::Socket can_socket;
+  udp::Socket udp_socket;
   try {
     can_socket.open(device);
     can_socket.bind();

@@ -8,7 +8,7 @@
 #include <chrono>
 
 
-void util::timer::init_system_timer()
+void util::Timer::init_system_timer()
 {
   auto fd = ::open("/dev/mem", O_RDONLY);
   if (fd == -1)
@@ -22,7 +22,7 @@ void util::timer::init_system_timer()
 }
 
 
-std::uint64_t util::timer::epoch_time() const
+std::uint64_t util::Timer::epoch_time() const
 {
   return std::chrono::high_resolution_clock::now().time_since_epoch().count();
 }

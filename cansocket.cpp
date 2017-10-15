@@ -13,7 +13,7 @@
 #include <cstring>
 
 
-void can::socket::open(const std::string& device)
+void can::Socket::open(const std::string& device)
 {
   if (fd_ != -1)
     throw socket_error{"Already open"};
@@ -37,7 +37,7 @@ void can::socket::open(const std::string& device)
 }
 
 
-void can::socket::close()
+void can::Socket::close()
 {
   if (fd_ != -1) {
     ::close(fd_);
@@ -46,7 +46,7 @@ void can::socket::close()
 }
 
 
-void can::socket::bind()
+void can::Socket::bind()
 {
   if (::bind(fd_, reinterpret_cast<sockaddr*>(&addr_), sizeof(addr_)) < 0)
     throw socket_error{"Error while binding socket"};
@@ -58,7 +58,7 @@ void can::socket::bind()
 }
 
 
-void can::socket::set_receive_timeout(time_t timeout)
+void can::Socket::set_receive_timeout(time_t timeout)
 {
   if (timeout <= 0)
     throw socket_error{"Timeout must be larger then 0"};
@@ -71,13 +71,13 @@ void can::socket::set_receive_timeout(time_t timeout)
 }
 
 
-int can::socket::transmit(const can_frame* frame)
+int can::Socket::transmit(const can_frame* frame)
 {
   return write(fd_, frame, sizeof(can_frame));
 }
 
 
-int can::socket::receive(can_frame* frame)
+int can::Socket::receive(can_frame* frame)
 {
   iov_.iov_base = frame;
   iov_.iov_len = sizeof(can_frame);
@@ -89,7 +89,7 @@ int can::socket::receive(can_frame* frame)
 }
 
 
-void can::socket::reset()
+void can::Socket::reset()
 {
   fd_ = -1;
   addr_ = sockaddr_can{};

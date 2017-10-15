@@ -14,7 +14,7 @@
 #include "udpsocket.h"
 
 
-void route_to_udp(can::socket& can_socket, udp::socket& udp_socket, std::atomic<bool>& stop)
+void route_to_udp(can::Socket& can_socket, udp::Socket& udp_socket, std::atomic<bool>& stop)
 {
   can_frame frame;
   while (!stop.load()) {
@@ -25,7 +25,7 @@ void route_to_udp(can::socket& can_socket, udp::socket& udp_socket, std::atomic<
 }
 
 
-void route_to_can(can::socket& can_socket, udp::socket& udp_socket, std::atomic<bool>& stop)
+void route_to_can(can::Socket& can_socket, udp::Socket& udp_socket, std::atomic<bool>& stop)
 {
   can_frame frame;
   while (!stop.load()) {
@@ -71,8 +71,8 @@ int main(int argc, char** argv)
   std::string can_device;
   std::string remote_ip;
   std::uint16_t remote_port;
-  can::socket can_socket;
-  udp::socket udp_socket;
+  can::Socket can_socket;
+  udp::Socket udp_socket;
 
   try {
     std::tie(can_device, remote_ip, remote_port) = parse_args(argc, argv);

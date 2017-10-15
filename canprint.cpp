@@ -28,7 +28,7 @@ void print_frame(const can_frame& frame)
 
 void print_frames(std::atomic<bool>& stop, std::string device)
 {
-  can::socket can_socket;
+  can::Socket can_socket;
   try {
     can_socket.open(device);
     can_socket.bind();

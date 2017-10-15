@@ -10,7 +10,7 @@
 #include <linux/can.h>
 
 
-void udp::socket::open(const std::string& ip, std::uint16_t port)
+void udp::Socket::open(const std::string& ip, std::uint16_t port)
 {
   if (fd_ != -1)
     throw socket_error{"Already open"};
@@ -29,7 +29,7 @@ void udp::socket::open(const std::string& ip, std::uint16_t port)
 }
 
 
-void udp::socket::close()
+void udp::Socket::close()
 {
   if (fd_ != -1) {
     ::close(fd_);
@@ -38,14 +38,14 @@ void udp::socket::close()
 }
 
 
-void udp::socket::bind()
+void udp::Socket::bind()
 {
   if (::bind(fd_, reinterpret_cast<sockaddr*>(&addr_), sizeof(addr_)) < 0)
     throw socket_error{"Error while binding socket"};
 }
 
 
-void udp::socket::bind(const std::string& ip, std::uint16_t port)
+void udp::Socket::bind(const std::string& ip, std::uint16_t port)
 {
   sockaddr_in addr;
   addr.sin_family = AF_INET;
@@ -60,7 +60,7 @@ void udp::socket::bind(const std::string& ip, std::uint16_t port)
 }
 
 
-void udp::socket::set_receive_timeout(time_t timeout)
+void udp::Socket::set_receive_timeout(time_t timeout)
 {
   if (timeout <= 0)
     throw socket_error{"Timeout must be larger then 0"};
@@ -73,20 +73,20 @@ void udp::socket::set_receive_timeout(time_t timeout)
 }
 
 
-int udp::socket::transmit(const can_frame* frame)
+int udp::Socket::transmit(const can_frame* frame)
 {
   return sendto(fd_, frame, sizeof(can_frame), 0, reinterpret_cast<sockaddr*>(&addr_),
       sizeof(addr_));
 }
 
 
-int udp::socket::receive(can_frame* frame)
+int udp::Socket::receive(can_frame* frame)
 {
   return recv(fd_, frame, sizeof(can_frame), 0);
 }
 
 
-void udp::socket::reset()
+void udp::Socket::reset()
 {
   fd_ = -1;
   addr_ = sockaddr_in{};

@@ -14,24 +14,24 @@ namespace can
 {
 
 
-class socket_error : public std::runtime_error
+class Socket_error : public std::runtime_error
 {
 public:
-  socket_error(const std::string& s) : std::runtime_error{s} {}
-  socket_error(const char* s) : std::runtime_error{s} {}
+  Socket_error(const std::string& s) : std::runtime_error{s} {}
+  Socket_error(const char* s) : std::runtime_error{s} {}
 };
 
 
-class socket
+class Socket
 {
 public:
-  socket() : fd_{-1} {}
-  ~socket() { close(); }
+  Socket() : fd_{-1} {}
+  ~Socket() { close(); }
 
-  socket(const socket&) = delete;
-  socket& operator=(const socket&) = delete;
-  socket(socket&&) = delete;
-  socket& operator=(socket&&) = delete;
+  Socket(const Socket&) = delete;
+  Socket& operator=(const Socket&) = delete;
+  Socket(Socket&&) = delete;
+  Socket& operator=(Socket&&) = delete;
 
   void open(const std::string& device);
   void close();

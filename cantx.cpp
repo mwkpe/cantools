@@ -49,11 +49,11 @@ void print_frame(const can_frame& frame)
 void transmit_frame(std::atomic<bool>& transmit_cyclical, const std::string device, can_frame frame,
     int cycle_time)
 {
-  can::socket can_socket;
+  can::Socket can_socket;
   try {
     can_socket.open(device);
   }
-  catch (const can::socket_error& e) {
+  catch (const can::Socket_error& e) {
     std::cerr << e.what() << std::endl;
     return;
   }

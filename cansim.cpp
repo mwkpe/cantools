@@ -26,17 +26,23 @@ __attribute__((unused)) static void clobber() { asm volatile("" : : : "memory");
 void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
 {
   // Example frames
-  can_frame frame_a{0};
-  frame_a.can_id = 0xC9;
-  frame_a.can_dlc = 4;
-  frame_a.data[0] = 0xFF;
-  frame_a.data[1] = 0xBB;
+  can_frame vehicle{0};
+  vehicle.can_id = 0xC9;
+  vehicle.can_dlc = 4;
+  vehicle.data[0] = 0xBB;
+  vehicle.data[1] = 0xFF;
 
-  can_frame frame_b{0};
-  frame_b.can_id = 0x1D2;
-  frame_b.can_dlc = 8;
-  frame_b.data[0] = 0xBB;
-  frame_b.data[1] = 0xFF;
+  can_frame radar{0};
+  radar.can_id = 0xCA;
+  radar.can_dlc = 4;
+  // Motorola byte order
+  // Pos 7, len 14 = 12317
+  // Pos 9, len 14 = 4404
+  // Pos 27, len 4 = 11
+  radar.data[0] = 0b1100'0000;
+  radar.data[1] = 0b0111'0101;
+  radar.data[2] = 0b0001'0011;
+  radar.data[3] = 0b0100'1011;
 
   // Network inferface and timer
   udp::socket udp_socket;
@@ -52,10 +58,13 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
 
   // Transmit scheduling
   auto transmit = [&](std::uint64_t time_ms) {
-    if (time_ms % 200 == 0)  // 200 ms cycle time
-      udp_socket.transmit(&frame_a);
-    if (time_ms % 25 == 0)  // 25 ms cycle time
-      udp_socket.transmit(&frame_b);
+    if (time_ms % 500 == 0) {  // 500 ms cycle time
+      vehicle.data[0]++;
+      udp_socket.transmit(&vehicle);
+    }
+    if (time_ms % 200 == 0) {  // 200 ms cycle time
+      udp_socket.transmit(&radar);
+    }
   };
 
   // Looping and timing

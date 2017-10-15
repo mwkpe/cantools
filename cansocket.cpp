@@ -16,15 +16,15 @@
 void can::Socket::open(const std::string& device)
 {
   if (fd_ != -1)
-    throw socket_error{"Already open"};
+    throw Socket_error{"Already open"};
 
   fd_ = ::socket(PF_CAN, SOCK_RAW, CAN_RAW);
 
   if (fd_ == -1)
-    throw socket_error{"Could not open"};
+    throw Socket_error{"Could not open"};
 
   if (device.size() + 1 >= IFNAMSIZ)
-    throw socket_error{"Device name too long"};
+    throw Socket_error{"Device name too long"};
 
   addr_.can_family = AF_CAN;
   ifreq ifr;
@@ -32,7 +32,7 @@ void can::Socket::open(const std::string& device)
   std::strcpy(ifr.ifr_name, device.c_str());
 
   if (ioctl(fd_, SIOCGIFINDEX, &ifr) < 0)
-    throw socket_error{"Error retrieving interface index"};
+    throw Socket_error{"Error retrieving interface index"};
   addr_.can_ifindex = ifr.ifr_ifindex;
 }
 
@@ -49,7 +49,7 @@ void can::Socket::close()
 void can::Socket::bind()
 {
   if (::bind(fd_, reinterpret_cast<sockaddr*>(&addr_), sizeof(addr_)) < 0)
-    throw socket_error{"Error while binding socket"};
+    throw Socket_error{"Error while binding socket"};
 
   msg_.msg_name = &addr_;
   msg_.msg_iov = &iov_;
@@ -61,13 +61,13 @@ void can::Socket::bind()
 void can::Socket::set_receive_timeout(time_t timeout)
 {
   if (timeout <= 0)
-    throw socket_error{"Timeout must be larger then 0"};
+    throw Socket_error{"Timeout must be larger then 0"};
 
   timeval tv;
   tv.tv_sec = timeout;
   tv.tv_usec = 0;
   if (setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0)
-    throw socket_error{"Error setting receive timeout"};
+    throw Socket_error{"Error setting receive timeout"};
 }
 
 

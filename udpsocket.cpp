@@ -13,17 +13,17 @@
 void udp::Socket::open(const std::string& ip, std::uint16_t port)
 {
   if (fd_ != -1)
-    throw socket_error{"Already open"};
+    throw Socket_error{"Already open"};
 
   fd_ = ::socket(AF_INET, SOCK_DGRAM, 0);
 
   if (fd_ == -1)
-    throw socket_error{"Could not open"};
+    throw Socket_error{"Could not open"};
 
   addr_.sin_family = AF_INET;
 
   if (inet_aton(ip.c_str(), &addr_.sin_addr) == 0)
-    throw socket_error{"Error resolving IP address"};
+    throw Socket_error{"Error resolving IP address"};
 
   addr_.sin_port = htons(port);
 }
@@ -41,7 +41,7 @@ void udp::Socket::close()
 void udp::Socket::bind()
 {
   if (::bind(fd_, reinterpret_cast<sockaddr*>(&addr_), sizeof(addr_)) < 0)
-    throw socket_error{"Error while binding socket"};
+    throw Socket_error{"Error while binding socket"};
 }
 
 
@@ -51,25 +51,25 @@ void udp::Socket::bind(const std::string& ip, std::uint16_t port)
   addr.sin_family = AF_INET;
 
   if (inet_aton(ip.c_str(), &addr.sin_addr) == 0)
-    throw socket_error{"Error resolving IP address"};
+    throw Socket_error{"Error resolving IP address"};
 
   addr.sin_port = htons(port);
 
   if (::bind(fd_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0)
-    throw socket_error{"Error while binding socket"};
+    throw Socket_error{"Error while binding socket"};
 }
 
 
 void udp::Socket::set_receive_timeout(time_t timeout)
 {
   if (timeout <= 0)
-    throw socket_error{"Timeout must be larger then 0"};
+    throw Socket_error{"Timeout must be larger then 0"};
 
   timeval tv;
   tv.tv_sec = timeout;
   tv.tv_usec = 0;
   if (setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0)
-    throw socket_error{"Error setting receive timeout"};
+    throw Socket_error{"Error setting receive timeout"};
 }
 
 

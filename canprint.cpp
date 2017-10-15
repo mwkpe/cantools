@@ -34,7 +34,7 @@ void print_frames(std::atomic<bool>& stop, std::string device)
     can_socket.bind();
     can_socket.set_receive_timeout(3);
   }
-  catch (const can::socket_error& e) {
+  catch (const can::Socket_error& e) {
     std::cerr << e.what() << std::endl;
     return;
   }

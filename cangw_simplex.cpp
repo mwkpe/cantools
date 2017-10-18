@@ -38,6 +38,29 @@ void route_frames(std::atomic<bool>& stop, std::string device, std::string ip, s
 }
 
 
+void set_scheduling_priority(std::thread& thread)
+{
+  sched_param sch;
+  int policy;
+  int priority = sched_get_priority_max(SCHED_FIFO);
+  sch.sched_priority = priority != -1 ? priority : 1;
+  if (pthread_setschedparam(thread.native_handle(), SCHED_FIFO, &sch) == 0) {
+    if (pthread_getschedparam(thread.native_handle(), &policy, &sch) == 0) {
+      std::cout << "Scheduling policy set to ";
+      switch (policy) {
+        case SCHED_OTHER: std::cout << "SCHED_OTHER"; break;
+        case SCHED_FIFO: std::cout << "SCHED_FIFO"; break;
+        case SCHED_RR: std::cout << "SCHED_RR"; break;
+      }
+      std::cout << " with priority " << sch.sched_priority << std::endl;
+    }
+  }
+  else {
+    throw std::runtime_error{"Could not set thread scheduling policy and priority, forgot sudo?"};
+  }
+}
+
+
 std::tuple<std::string, std::string, std::uint16_t> parse_args(int argc, char** argv)
 {
   std::string can_device;
@@ -87,6 +110,12 @@ int main(int argc, char** argv)
 
   std::atomic<bool> stop{false};
   std::thread gateway{&route_frames, std::ref(stop), can_device, remote_ip, remote_port};
+  try {
+    set_scheduling_priority(gateway);
+  }
+  catch (const std::runtime_error& e) {
+    std::cerr << "Warning: " << e.what() << std::endl;
+  }
   std::cin.ignore();  // Wait in main thread
 
   std::cout << "Stopping gateway..." << std::endl;

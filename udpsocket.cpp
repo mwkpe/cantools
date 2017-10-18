@@ -10,6 +10,27 @@
 #include <linux/can.h>
 
 
+namespace
+{
+
+
+class Scope_guard
+{
+public:
+  Scope_guard(int fd) : fd_{fd} {}
+  ~Scope_guard() { if (fd_ != -1) ::close(fd_); }
+  Scope_guard(const Scope_guard&) = delete;
+  Scope_guard& operator=(const Scope_guard&) = delete;
+  void release() { fd_  = -1; }
+
+private:
+  int fd_;
+};
+
+
+}  // namespace
+
+
 void udp::Socket::open(const std::string& ip, std::uint16_t port)
 {
   if (fd_ != -1)
@@ -20,12 +41,16 @@ void udp::Socket::open(const std::string& ip, std::uint16_t port)
   if (fd_ == -1)
     throw Socket_error{"Could not open"};
 
+  Scope_guard guard{fd_};
+
   addr_.sin_family = AF_INET;
 
   if (inet_aton(ip.c_str(), &addr_.sin_addr) == 0)
     throw Socket_error{"Error resolving IP address"};
 
   addr_.sin_port = htons(port);
+
+  guard.release();
 }
 
 
@@ -33,8 +58,9 @@ void udp::Socket::close()
 {
   if (fd_ != -1) {
     ::close(fd_);
-    reset();
   }
+
+  reset();
 }
 
 
@@ -70,6 +96,13 @@ void udp::Socket::set_receive_timeout(time_t timeout)
   tv.tv_usec = 0;
   if (setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0)
     throw Socket_error{"Error setting receive timeout"};
+}
+
+
+int udp::Socket::transmit(const std::vector<std::uint8_t>& data)
+{
+  return sendto(fd_, data.data(), data.size(), 0, reinterpret_cast<sockaddr*>(&addr_),
+      sizeof(addr_));
 }
 
 

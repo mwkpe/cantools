@@ -14,9 +14,9 @@
 #include "cansocket.h"
 
 
-void print_frame(const can_frame& frame)
+void print_frame(const can_frame& frame, std::uint64_t time)
 {
-  std::cout << std::setfill('0') << std::hex << std::setw(8) << frame.can_id << std::dec
+  std::cout << time << std::setfill(' ') << std::hex << std::setw(8) << frame.can_id << std::dec
       << "   " << static_cast<int>(frame.can_dlc) << "   " << std::hex << std::setfill('0');
   for (int i=0; i<frame.can_dlc; i++) {
     std::cout << std::setw(2) << static_cast<int>(frame.data[i]) << ' ';
@@ -33,18 +33,20 @@ void print_frames(std::atomic<bool>& stop, std::string device)
     can_socket.open(device);
     can_socket.bind();
     can_socket.set_receive_timeout(3);
+    can_socket.set_socket_timestamp(true);
   }
   catch (const can::Socket_error& e) {
     std::cerr << e.what() << std::endl;
     return;
   }
 
+  std::uint64_t time;
   can_frame frame;
 
   while (!stop.load()) {
-    auto n = can_socket.receive(&frame);
+    auto n = can_socket.receive(&frame, &time);
     if (n == CAN_MTU) {
-      print_frame(frame);
+      print_frame(frame, time);
     }
     else if (n > 0) {
       std::cout << "Received incomplete frame (" << n << " bytes)" << std::endl;

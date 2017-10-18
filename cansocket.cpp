@@ -13,6 +13,27 @@
 #include <cstring>
 
 
+namespace
+{
+
+
+class Scope_guard
+{
+public:
+  Scope_guard(int fd) : fd_{fd} {}
+  ~Scope_guard() { if (fd_ != -1) ::close(fd_); }
+  Scope_guard(const Scope_guard&) = delete;
+  Scope_guard& operator=(const Scope_guard&) = delete;
+  void release() { fd_  = -1; }
+
+private:
+  int fd_;
+};
+
+
+}  // namespace
+
+
 void can::Socket::open(const std::string& device)
 {
   if (fd_ != -1)
@@ -22,6 +43,8 @@ void can::Socket::open(const std::string& device)
 
   if (fd_ == -1)
     throw Socket_error{"Could not open"};
+
+  Scope_guard guard{fd_};
 
   if (device.size() + 1 >= IFNAMSIZ)
     throw Socket_error{"Device name too long"};
@@ -34,6 +57,8 @@ void can::Socket::open(const std::string& device)
   if (ioctl(fd_, SIOCGIFINDEX, &ifr) < 0)
     throw Socket_error{"Error retrieving interface index"};
   addr_.can_ifindex = ifr.ifr_ifindex;
+
+  guard.release();
 }
 
 
@@ -41,8 +66,9 @@ void can::Socket::close()
 {
   if (fd_ != -1) {
     ::close(fd_);
-    reset();
   }
+
+  reset();
 }
 
 
@@ -54,7 +80,7 @@ void can::Socket::bind()
   msg_.msg_name = &addr_;
   msg_.msg_iov = &iov_;
   msg_.msg_iovlen = 1;
-  msg_.msg_control = nullptr;
+  msg_.msg_control = cmsg_buffer.data();
 }
 
 
@@ -68,6 +94,14 @@ void can::Socket::set_receive_timeout(time_t timeout)
   tv.tv_usec = 0;
   if (setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0)
     throw Socket_error{"Error setting receive timeout"};
+}
+
+
+void can::Socket::set_socket_timestamp(bool enable)
+{
+  const int param = enable ? 1 : 0;
+  if (setsockopt(fd_, SOL_SOCKET, SO_TIMESTAMP, &param, sizeof(param)) != 0)
+    throw Socket_error{"Error setting socket timestamp"};
 }
 
 
@@ -86,6 +120,31 @@ int can::Socket::receive(can_frame* frame)
   msg_.msg_flags = 0;
 
   return recvmsg(fd_, &msg_, 0);
+}
+
+
+int can::Socket::receive(can_frame* frame, std::uint64_t* time)
+{
+  iov_.iov_base = frame;
+  iov_.iov_len = sizeof(can_frame);
+  msg_.msg_namelen = sizeof(addr_);
+  msg_.msg_controllen = cmsg_buffer.size();
+  msg_.msg_flags = 0;
+
+  auto len = recvmsg(fd_, &msg_, 0);
+
+  // Get receive time from ancillary data
+  for (auto* cmsg = CMSG_FIRSTHDR(&msg_);
+       cmsg && cmsg->cmsg_level == SOL_SOCKET;
+       cmsg = CMSG_NXTHDR(&msg_, cmsg)) {
+    if (cmsg->cmsg_type == SO_TIMESTAMP) {
+      timeval tv;
+      memcpy(&tv, CMSG_DATA(cmsg), sizeof(tv));
+      *time = (tv.tv_sec * 1'000'000ull + tv.tv_usec) / 1000ull;  // Time in ms
+    }
+  }
+
+  return len;
 }
 
 

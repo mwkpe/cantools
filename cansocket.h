@@ -7,6 +7,7 @@
 #include <linux/can/raw.h>
 
 #include <string>
+#include <array>
 #include <stdexcept>
 
 
@@ -38,9 +39,11 @@ public:
 
   void bind();
   void set_receive_timeout(time_t timeout);
+  void set_socket_timestamp(bool enable);
 
   int transmit(const can_frame* frame);
   int receive(can_frame* frame);
+  int receive(can_frame* frame, std::uint64_t* time);
 
 private:
   void reset();
@@ -49,6 +52,7 @@ private:
   sockaddr_can addr_;
   iovec iov_;
   msghdr msg_;
+  std::array<uint8_t, CMSG_SPACE(sizeof(timeval))> cmsg_buffer;  // Receive time
 };
 
 

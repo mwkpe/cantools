@@ -4,6 +4,8 @@
 
 #include <linux/can.h>
 #include <unistd.h>
+#include <sched.h>
+#include <pthread.h>
 
 #include <cstdint>
 #include <string>
@@ -117,6 +119,9 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
   radar.data[3] = 0b0100'1011;
 
   // Network inferface and timer
+  std::vector<std::uint8_t> buffer(sizeof(std::uint64_t) + sizeof(can_frame));
+  auto* time_buffer = reinterpret_cast<std::uint64_t*>(buffer.data());
+  auto* frame_buffer = reinterpret_cast<std::uint64_t*>(buffer.data() + sizeof(std::uint64_t));
   udp::Socket udp_socket;
   util::Timer timer;
   try {
@@ -129,7 +134,7 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
   }
 
   // Transmit scheduling
-  auto transmit = [&](std::uint64_t time_ms) {
+  /*auto transmit = [&](std::uint64_t time_ms) {
     if (time_ms % 250 == 0) {  // 250 ms cycle time
       veh_state_data->aliv++;
       // Add crc calculation
@@ -144,6 +149,31 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
     if (time_ms % 1333 == 0) {
       udp_socket.transmit(&date_time);
     }
+  };*/
+
+  auto transmit_with_timestamp = [&](std::uint64_t time_ms) {
+    if (time_ms % 250 == 0) {  // 250 ms cycle time
+      veh_state_data->aliv++;
+      // Add crc calculation
+      *time_buffer = time_ms;
+      std::memcpy(frame_buffer, &veh_state, sizeof(can_frame));
+      udp_socket.transmit(buffer);
+    }
+    if (time_ms % 100 == 0) {
+      *time_buffer = time_ms;
+      std::memcpy(frame_buffer, &flux_state, sizeof(can_frame));
+      udp_socket.transmit(buffer);
+    }
+    if (time_ms % 225 == 0) {
+      *time_buffer = time_ms;
+      std::memcpy(frame_buffer, &radar, sizeof(can_frame));
+      udp_socket.transmit(buffer);
+    }
+    if (time_ms % 1333 == 0) {
+      *time_buffer = time_ms;
+      std::memcpy(frame_buffer, &date_time, sizeof(can_frame));
+      udp_socket.transmit(buffer);
+    }
   };
 
   // Looping and timing
@@ -157,8 +187,31 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
       current_time_us = timer.system_time();
     } while (current_time_us < next_cycle);  // Polling wait until exactly 1 ms passed
     next_cycle = current_time_us + 1000ull;
-    transmit(current_time_us / 1000ull);
-    usleep(750);
+    transmit_with_timestamp(current_time_us / 1000ull);
+    usleep(500);
+  }
+}
+
+
+void set_scheduling_priority(std::thread& thread)
+{
+  sched_param sch;
+  int policy;
+  int priority = sched_get_priority_max(SCHED_FIFO);
+  sch.sched_priority = priority != -1 ? priority : 1;
+  if (pthread_setschedparam(thread.native_handle(), SCHED_FIFO, &sch) == 0) {
+    if (pthread_getschedparam(thread.native_handle(), &policy, &sch) == 0) {
+      std::cout << "Scheduling policy set to ";
+      switch (policy) {
+        case SCHED_OTHER: std::cout << "SCHED_OTHER"; break;
+        case SCHED_FIFO: std::cout << "SCHED_FIFO"; break;
+        case SCHED_RR: std::cout << "SCHED_RR"; break;
+      }
+      std::cout << " with priority " << sch.sched_priority << std::endl;
+    }
+  }
+  else {
+    throw std::runtime_error{"Could not set thread scheduling policy and priority, forgot sudo?"};
   }
 }
 
@@ -209,6 +262,12 @@ int main(int argc, char** argv)
 
   std::atomic<bool> stop{false};
   std::thread simulation{&simulate, std::ref(stop), std::move(remote_ip), remote_port};
+  try {
+    set_scheduling_priority(simulation);
+  }
+  catch (const std::runtime_error& e) {
+    std::cerr << "Warning: " << e.what() << std::endl;
+  }
   std::cin.ignore();  // Wait in main thread
 
   std::cout << "Stopping simulation..." << std::endl;

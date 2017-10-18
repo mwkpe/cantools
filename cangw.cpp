@@ -33,12 +33,12 @@ void route_to_udp_with_timestamp(can::Socket& can_socket, udp::Socket& udp_socke
     std::atomic<bool>& stop)
 {
   std::vector<std::uint8_t> buffer(sizeof(std::uint64_t) + sizeof(can_frame));
-  // Passing on original receive time for more accurate cycle time information of frames
+  // Pass-through of original receive timestamp for more accurate timing information of frames
   auto* time = reinterpret_cast<std::uint64_t*>(buffer.data());
   auto* frame = reinterpret_cast<can_frame*>(buffer.data() + sizeof(std::uint64_t));
 
   while (!stop.load()) {
-    // Anciallary data is not part of socket payload
+    // Ancillary data is not part of socket payload
     if (can_socket.receive(frame, time) == sizeof(can_frame)) {
       udp_socket.transmit(buffer);
     }

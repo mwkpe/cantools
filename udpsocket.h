@@ -7,7 +7,9 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 #include <stdexcept>
+
 
 struct can_frame;
 
@@ -42,6 +44,7 @@ public:
   void bind(const std::string& ip, std::uint16_t port);
   void set_receive_timeout(time_t timeout);
 
+  int transmit(const std::vector<std::uint8_t>& data);
   int transmit(const can_frame* frame);
   int receive(can_frame* frame);
 
@@ -53,7 +56,7 @@ private:
 };
 
 
-}  // namespace can
+}  // namespace udp
 
 
 #endif  // UDP_SOCKET_H

@@ -1,4 +1,4 @@
-/* CAN bus simulation for development purposes
+/* CAN bus to UDP simulation for development purposes
  */
 
 
@@ -18,6 +18,7 @@
 
 #include "timer.h"
 #include "udpsocket.h"
+#include "priority.h"
 
 
 // Evil functions to defeat the optimizer
@@ -65,7 +66,7 @@ struct Frame_date_time
 }  // namespace
 
 
-void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
+void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port, bool timestamp)
 {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Woverflow"
@@ -134,7 +135,7 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
   }
 
   // Transmit scheduling
-  /*auto transmit = [&](std::uint64_t time_ms) {
+  auto transmit = [&](std::uint64_t time_ms) {
     if (time_ms % 250 == 0) {  // 250 ms cycle time
       veh_state_data->aliv++;
       // Add crc calculation
@@ -149,7 +150,7 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
     if (time_ms % 1333 == 0) {
       udp_socket.transmit(&date_time);
     }
-  };*/
+  };
 
   auto transmit_with_timestamp = [&](std::uint64_t time_ms) {
     if (time_ms % 250 == 0) {  // 250 ms cycle time
@@ -187,56 +188,40 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port)
       current_time_us = timer.system_time();
     } while (current_time_us < next_cycle);  // Polling wait until exactly 1 ms passed
     next_cycle = current_time_us + 1000ull;
-    transmit_with_timestamp(current_time_us / 1000ull);
-    usleep(500);
+    if (timestamp)
+      transmit_with_timestamp(current_time_us / 1000ull);
+    else
+      transmit(current_time_us / 1000ull);
+    usleep(750);
   }
 }
 
 
-void set_scheduling_priority(std::thread& thread)
+std::tuple<std::string, std::uint16_t, bool, bool> parse_args(int argc, char** argv)
 {
-  sched_param sch;
-  int policy;
-  int priority = sched_get_priority_max(SCHED_FIFO);
-  sch.sched_priority = priority != -1 ? priority : 1;
-  if (pthread_setschedparam(thread.native_handle(), SCHED_FIFO, &sch) == 0) {
-    if (pthread_getschedparam(thread.native_handle(), &policy, &sch) == 0) {
-      std::cout << "Scheduling policy set to ";
-      switch (policy) {
-        case SCHED_OTHER: std::cout << "SCHED_OTHER"; break;
-        case SCHED_FIFO: std::cout << "SCHED_FIFO"; break;
-        case SCHED_RR: std::cout << "SCHED_RR"; break;
-      }
-      std::cout << " with priority " << sch.sched_priority << std::endl;
-    }
-  }
-  else {
-    throw std::runtime_error{"Could not set thread scheduling policy and priority, forgot sudo?"};
-  }
-}
-
-
-std::tuple<std::string, std::uint16_t> parse_args(int argc, char** argv)
-{
+  bool realtime = false;
+  bool timestamp = false;
   std::string remote_ip;
-  std::uint16_t remote_port;
+  std::uint16_t data_port;
 
   try {
-    cxxopts::Options options{"cangw", "CAN to UDP router"};
+    cxxopts::Options options{"cansim", "CAN bus to UDP simulation"};
     options.add_options()
-      ("ip", "Remote device IP", cxxopts::value<std::string>(remote_ip))
-      ("port", "UDP port", cxxopts::value<std::uint16_t>(remote_port))
+      ("r,realtime", "Enable realtime scheduling policy", cxxopts::value<bool>(realtime))
+      ("t,timestamp", "Prefix UDP packets with timestamp", cxxopts::value<bool>(timestamp))
+      ("i,ip", "Remote device IP", cxxopts::value<std::string>(remote_ip))
+      ("p,port", "UDP data port", cxxopts::value<std::uint16_t>(data_port))
     ;
     options.parse(argc, argv);
 
     if (options.count("ip") == 0) {
-      throw std::runtime_error{"Remote IP must be specified, use the --ip option"};
+      throw std::runtime_error{"Remote IP must be specified, use the -i or --ip option"};
     }
     if (options.count("port") == 0) {
-      throw std::runtime_error{"UDP port must be specified, use the --port option"};
+      throw std::runtime_error{"UDP port must be specified, use the -p or --port option"};
     }
 
-    return std::make_tuple(std::move(remote_ip), remote_port);
+    return std::make_tuple(std::move(remote_ip), data_port, realtime, timestamp);
   }
   catch (const cxxopts::OptionException& e) {
     throw std::runtime_error{e.what()};
@@ -246,28 +231,32 @@ std::tuple<std::string, std::uint16_t> parse_args(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
+  bool realtime;
+  bool timestamp;
   std::string remote_ip;
-  std::uint16_t remote_port;
+  std::uint16_t data_port;
 
   try {
-    std::tie(remote_ip, remote_port) = parse_args(argc, argv);
+    std::tie(remote_ip, data_port, realtime, timestamp) = parse_args(argc, argv);
   }
   catch (const std::runtime_error& e) {
     std::cerr << e.what() << std::endl;
     return 1;
   }
 
-  std::cout << "Sending frames to " << remote_ip << ":" << remote_port
+  std::cout << "Sending frames to " << remote_ip << ":" << data_port
       << "\nPress enter to stop..." << std::endl;
 
   std::atomic<bool> stop{false};
-  std::thread simulation{&simulate, std::ref(stop), std::move(remote_ip), remote_port};
-  try {
-    set_scheduling_priority(simulation);
+  std::thread simulation{&simulate, std::ref(stop), std::move(remote_ip), data_port, timestamp};
+
+  if (realtime) {
+    if (priority::set_realtime(simulation.native_handle()))
+      std::cout << "Simulation thread set to realtime scheduling policy\n";
+    else
+      std::cout << "Warning: Could not set scheduling policy, forgot sudo?\n";
   }
-  catch (const std::runtime_error& e) {
-    std::cerr << "Warning: " << e.what() << std::endl;
-  }
+
   std::cin.ignore();  // Wait in main thread
 
   std::cout << "Stopping simulation..." << std::endl;

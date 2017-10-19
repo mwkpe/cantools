@@ -8,6 +8,7 @@
 
 #include <sched.h>
 #include <pthread.h>
+#include <thread>
 
 
 namespace priority

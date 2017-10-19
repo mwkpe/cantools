@@ -12,17 +12,27 @@ Build
 ---
 Use `make` to build all tools or `make cangw` etc.
 
+Status
+---
+WIP
+
 Usage
 ---
-| Tool | Parameter | required | default | Description |
-| ---- | ----------| :------: | ------- | ----------- |
-| cantx | device<br>id<br>data<br>cycle | <br>✓<br><br><br> | can0<br><br>00<br>-1 (send once) | CAN device<br>Frame ID<br>Hex data string<br>Repetition time in ms |
-| canprint | device | | can0 | CAN device |
-| cangw | device<br>ip<br>port | <br>✓<br>✓ | can0<br><br><br> | CAN device<br>IP of remote device<br>Target port |
+| Tool | Parameter | short | required | default | Description |
+| ---- | --------- | :---: | :------: | ------- | ----------- |
+| cantx | device<br>id<br>data<br>cycle | <br><br><br> | <br>✓<br><br><br> | can0<br><br>00<br>-1 (send once) | CAN device<br>Frame ID<br>Hex data string<br>Repetition time in ms |
+| canprint | device | | | can0 | CAN device |
+| cangw | realtime<br>timestamp<br>device<br>ip<br>port | -r<br>-t<br>-d<br>-i<br>-p | <br><br><br>✓<br>✓ | false<br>false<br>can0<br><br><br> | Enable realtime scheduling policy<br>Prefix UDP packets with a timestamp<br>CAN device<br>IP of remote device<br>Target port |
 
-Examples:<br>
-./cantx --device=can0 --id=42 --data=0102030405060708 --cycle=100<br>
-./cangw --ip=192.168.1.5 --port=30001
+
+
+Examples:
+```bash
+$ ./canprint
+$ ./cantx --device=can0 --id=42 --data=0102030405060708 --cycle=100
+$ ./cangw --ip=192.168.1.5 --port=30001
+$ ./cangw -rti 192.168.1.5 -p 30001
+```
 
 Acknowledgements
 ---

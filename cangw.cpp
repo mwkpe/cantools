@@ -38,7 +38,7 @@ void route_to_udp_with_timestamp(can::Socket& can_socket, udp::Socket& udp_socke
   auto* frame = reinterpret_cast<can_frame*>(buffer.data() + sizeof(std::uint64_t));
 
   while (!stop.load()) {
-    // Ancillary data is not part of socket payload
+    // Ancillary data (timestamp) is not part of socket payload
     if (can_socket.receive(frame, time) == sizeof(can_frame)) {
       udp_socket.transmit(buffer);
     }

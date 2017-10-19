@@ -38,15 +38,18 @@ udpsocket.o: udpsocket.cpp udpsocket.h
 cantx.o: cantx.cpp cansocket.h
 	$(CXX) -c $(CXXFLAGS) cantx.cpp
 
-canprint.o: cantx.cpp cansocket.h
+canprint.o: canprint.cpp cansocket.h
 	$(CXX) -c $(CXXFLAGS) canprint.cpp
 
-cangw.o: cantx.cpp cansocket.h udpsocket.h
+cangw.o: cangw.cpp cansocket.h udpsocket.h priority.h
 	$(CXX) -c $(CXXFLAGS) cangw.cpp
 
-cangw_simplex.o: cantx.cpp cansocket.h udpsocket.h
+cangw_simplex.o: cangw_simplex.cpp cansocket.h udpsocket.h priority.h
 	$(CXX) -c $(CXXFLAGS) cangw_simplex.cpp
+
+cansim.o: cansim.cpp udpsocket.h priority.h
+	$(CXX) -c $(CXXFLAGS) cansim.cpp
 
 
 clean:
-	-rm *o cantx canprint cangw
+	-rm *o cantx canprint cangw cangw_simplex cansim

@@ -1,5 +1,5 @@
 # cantools
-A collection of CAN bus tools
+A collection of CLI tools for receiving and transmitting CAN frames
 
 Description
 ---

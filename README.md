@@ -20,7 +20,7 @@ Usage
 ---
 | Tool | Options | Short | Required | Default | Description |
 | ---- | ------- | :---: | :------: | ------- | ----------- |
-| cantx | device<br>id<br>data<br>cycle | <br><br><br> | <br>✓<br><br><br> | can0<br><br>00<br>-1 (send once) | CAN device<br>Frame ID<br>Hex data string<br>Repetition time in ms |
+| cantx | device<br>id<br>payload<br>cycle<br>realtime | `-d`<br> `-i`<br> `-p`<br> `-c`<br> `-r` | <br>✓<br><br><br><br> | can0<br><br>00<br>-1 (send once)<br>false | CAN device<br>Frame ID<br>Hex data string<br>Repetition time in ms<br>Enable realtime scheduling policy |
 | canprint | device | | | can0 | CAN device |
 | cangw | listen<br>send<br>realtime<br>timestamp<br>device<br>ip<br>port | `-l`<br> `-s`<br> `-r`<br> `-t`<br> `-d`<br> `-i`<br> `-p` | `-l` ∨ `-s`<br>`-l` ∨ `-s`<br><br><br><br>✓<br>✓ | <br><br>false<br>false<br>can0<br><br><br> | Route frames from CAN to UDP<br>Route frames from UDP to CAN<br>Enable realtime scheduling policy<br>Prefix UDP payload with a timestamp<br>CAN device<br>IP of remote device<br>UDP port |
 
@@ -29,7 +29,7 @@ Usage
 Examples:
 ```bash
 # Send frame each 100 ms
-$ ./cantx --device=can0 --id=42 --data=0102030405060708 --cycle=100
+$ ./cantx --device=can0 --id=42 --data=0807060504030201 --cycle=100
 
 # Route frames from CAN to UDP
 $ ./cangw --listen --ip=192.168.1.5 --port=30001

@@ -22,7 +22,7 @@ Usage
 | ---- | --------- | :---: | :------: | ------- | ----------- |
 | cantx | device<br>id<br>data<br>cycle | <br><br><br> | <br>✓<br><br><br> | can0<br><br>00<br>-1 (send once) | CAN device<br>Frame ID<br>Hex data string<br>Repetition time in ms |
 | canprint | device | | | can0 | CAN device |
-| cangw | listen<br>send<br>realtime<br>timestamp<br>device<br>ip<br>port | -l<br>-s<br>-r<br>-t<br>-d<br>-i<br>-p |-l ∨ -s<br>-l ∨ -s<br><br><br><br>✓<br>✓ | <br><br>false<br>false<br>can0<br><br><br> | Route frames from CAN to UDP<br>Route frames from UDP to CAN<br>Enable realtime scheduling policy<br>Prefix UDP payload with a timestamp<br>CAN device<br>IP of remote device<br>UDP port |
+| cangw | listen<br>send<br>realtime<br>timestamp<br>device<br>ip<br>port | `-l` <br> `-s`<br> `-r`<br> `-t`<br> `-d`<br> `-i`<br> `-p` | `-l` ∨ `-s`<br> `-l` ∨ `-s` <br><br><br><br>✓<br>✓ | <br><br>false<br>false<br>can0<br><br><br> | Route frames from CAN to UDP<br>Route frames from UDP to CAN<br>Enable realtime scheduling policy<br>Prefix UDP payload with a timestamp<br>CAN device<br>IP of remote device<br>UDP port |
 
 
 

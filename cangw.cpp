@@ -11,9 +11,29 @@
 #include <iostream>
 
 #include "cxxopts.hpp"
+
 #include "cansocket.h"
 #include "udpsocket.h"
 #include "priority.h"
+
+
+namespace cangw
+{
+
+
+struct Options
+{
+  bool listen;  // Read frames from CAN bus
+  bool send;  // Send frames to CAN bus
+  bool realtime;  // Set listen and/or send thread to realtime scheduling policy
+  bool timestamp;  // Pass original CAN receive timestamp to remote device
+  std::string remote_ip;
+  std::uint16_t data_port;
+  std::string can_device;
+};
+
+
+}  // namespace cangw
 
 
 void route_to_udp(can::Socket& can_socket, udp::Socket& udp_socket, std::atomic<bool>& stop,
@@ -53,33 +73,40 @@ void route_to_can(can::Socket& can_socket, udp::Socket& udp_socket, std::atomic<
 }
 
 
-std::tuple<std::string, std::string, std::uint16_t, bool, bool> parse_args(int argc, char** argv)
+cangw::Options parse_args(int argc, char** argv)
 {
-  bool realtime = false;
-  bool timestamp = false;
-  std::string remote_ip;
-  std::uint16_t data_port;
-  std::string can_device;
+  cangw::Options options;
+  options.listen = false;
+  options.send = false;
+  options.realtime = false;
+  options.timestamp = false;
 
   try {
-    cxxopts::Options options{"cangw", "CAN to UDP duplex gateway"};
-    options.add_options()
-      ("r,realtime", "Enable realtime scheduling policy", cxxopts::value<bool>(realtime))
-      ("t,timestamp", "Prefix UDP packets with timestamp", cxxopts::value<bool>(timestamp))
-      ("i,ip", "Remote device IP", cxxopts::value<std::string>(remote_ip))
-      ("p,port", "UDP data port", cxxopts::value<std::uint16_t>(data_port))
-      ("d,device", "CAN device name", cxxopts::value<std::string>(can_device)->default_value("can0"))
+    cxxopts::Options cli_options{"cangw", "CAN to UDP gateway"};
+    cli_options.add_options()
+      ("l,listen", "Route frames from CAN to UDP", cxxopts::value<bool>(options.listen))
+      ("s,send", "Route frames from UDP to CAN", cxxopts::value<bool>(options.send))
+      ("r,realtime", "Enable realtime scheduling policy", cxxopts::value<bool>(options.realtime))
+      ("t,timestamp", "Prefix UDP payload with timestamp", cxxopts::value<bool>(options.timestamp))
+      ("i,ip", "Remote device IP", cxxopts::value<std::string>(options.remote_ip))
+      ("p,port", "UDP data port", cxxopts::value<std::uint16_t>(options.data_port))
+      ("d,device", "CAN device name", cxxopts::value<std::string>(options.can_device)
+          ->default_value("can0"))
     ;
-    options.parse(argc, argv);
+    cli_options.parse(argc, argv);
 
-    if (options.count("ip") == 0) {
+    if (cli_options.count("listen") + cli_options.count("send") == 0) {
+      throw std::runtime_error{"Mode must be specified, use the -l or --listen "
+          "and/or -s or --send option"};
+    }
+    if (cli_options.count("ip") == 0) {
       throw std::runtime_error{"Remote IP must be specified, use the -i or --ip option"};
     }
-    if (options.count("port") == 0) {
+    if (cli_options.count("port") == 0) {
       throw std::runtime_error{"UDP port must be specified, use the -p or --port option"};
     }
 
-    return std::make_tuple(std::move(can_device), std::move(remote_ip), data_port, realtime, timestamp);
+    return options;
   }
   catch (const cxxopts::OptionException& e) {
     throw std::runtime_error{e.what()};
@@ -89,42 +116,52 @@ std::tuple<std::string, std::string, std::uint16_t, bool, bool> parse_args(int a
 
 int main(int argc, char** argv)
 {
-  bool realtime;
-  bool timestamp;  // Pass original CAN receive timestamp to remote device
-  std::string remote_ip;
-  std::uint16_t data_port;
-  std::string can_device;
+  cangw::Options options;
   can::Socket can_socket;
   udp::Socket udp_socket;
 
   try {
-    std::tie(can_device, remote_ip, data_port, realtime, timestamp) = parse_args(argc, argv);
-    can_socket.open(can_device);
-    can_socket.bind();
-    can_socket.set_receive_timeout(3);
-    if (timestamp)
+    options = parse_args(argc, argv);
+    can_socket.open(options.can_device);
+    if (options.listen) {
+      can_socket.bind();
+      can_socket.set_receive_timeout(3);
+    }
+    if (options.timestamp)
       can_socket.set_socket_timestamp(true);
-    udp_socket.open(remote_ip, data_port);  // Transmit to remote device
-    udp_socket.bind("0.0.0.0", data_port);  // Receive from remote device
-    udp_socket.set_receive_timeout(3);
+    udp_socket.open(options.remote_ip, options.data_port);  // Transmit frames to remote device
+    if (options.send) {
+      udp_socket.bind("0.0.0.0", options.data_port);  // Receive frames from remote device
+      udp_socket.set_receive_timeout(3);
+    }
   }
   catch (const std::runtime_error& e) {
     std::cerr << e.what() << std::endl;
     return 1;
   }
 
-  std::cout << "Routing frames between " << can_device << " and " << remote_ip << ":"
-      << data_port << "\nPress enter to stop..." << std::endl;
+  std::cout << "Routing frames between " << options.can_device << " and " << options.remote_ip
+      << ":" << options.data_port << "\nPress enter to stop..." << std::endl;
 
   std::atomic<bool> stop{false};
-  std::thread can_to_udp{&route_to_udp, std::ref(can_socket), std::ref(udp_socket), std::ref(stop),
-      timestamp};
-  std::thread udp_to_can{&route_to_can, std::ref(can_socket), std::ref(udp_socket), std::ref(stop)};
+  std::thread listener{};
+  std::thread sender{};
 
-  if (realtime) {
-    if (priority::set_realtime(can_to_udp.native_handle()) &&
-        priority::set_realtime(udp_to_can.native_handle()))
-      std::cout << "Gateway threads set to realtime scheduling policy\n";
+  if (options.listen) {
+    listener = std::thread{&route_to_udp, std::ref(can_socket), std::ref(udp_socket),
+        std::ref(stop), options.timestamp};
+  }
+
+  if (options.send) {
+    sender = std::thread{&route_to_can, std::ref(can_socket), std::ref(udp_socket),
+        std::ref(stop)};
+  }
+
+  if (options.realtime) {
+    // Only attempt to set active threads to realtime scheduling policy
+    if ((!listener.joinable() || priority::set_realtime(listener.native_handle())) &&
+        (!sender.joinable() || priority::set_realtime(sender.native_handle())))
+      std::cout << "Gateway thread(s) set to realtime scheduling policy\n";
     else
       std::cout << "Warning: Could not set scheduling policy, forgot sudo?\n";
   }
@@ -133,8 +170,10 @@ int main(int argc, char** argv)
 
   std::cout << "Stopping gateway..." << std::endl;
   stop.store(true);
-  can_to_udp.join();
-  udp_to_can.join();
+  if (listener.joinable())
+    listener.join();
+  if (sender.joinable())
+    sender.join();
 
   std::cout << "Program finished" << std::endl;
   return 0;

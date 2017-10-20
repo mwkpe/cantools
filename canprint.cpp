@@ -16,12 +16,12 @@
 
 void print_frame(const can_frame& frame, std::uint64_t time)
 {
-  std::cout << time << std::setfill(' ') << std::hex << std::setw(8) << frame.can_id << std::dec
-      << "   " << static_cast<int>(frame.can_dlc) << "   " << std::hex << std::setfill('0');
-  for (int i=0; i<frame.can_dlc; i++) {
+  std::cout << time << ',' << std::setfill(' ') << std::hex << std::setw(8) << frame.can_id
+      << std::dec  << ',' << static_cast<int>(frame.can_dlc) << ',' << std::hex << std::setfill('0');
+  for (int i=frame.can_dlc-1; i>0; --i)
     std::cout << std::setw(2) << static_cast<int>(frame.data[i]) << ' ';
-  }
-  std::cout << '\n';
+  if (frame.can_dlc > 0)
+    std::cout << std::setw(2) << static_cast<int>(frame.data[0]) << '\n';
   std::cout.copyfmt(std::ios{nullptr});  // Reset format state
 }
 

@@ -68,7 +68,7 @@ std::string parse_args(int argc, char** argv)
   try {
     cxxopts::Options options{"canprint", "Prints CAN frames to console"};
     options.add_options()
-      ("device", "CAN device name", cxxopts::value<std::string>(can_device)->default_value("can0"))
+      ("d,device", "CAN device name", cxxopts::value<std::string>(can_device)->default_value("can0"))
     ;
     options.parse(argc, argv);
     return can_device;

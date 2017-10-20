@@ -16,28 +16,27 @@
 #include "priority.h"
 
 
-void route_to_udp(can::Socket& can_socket, udp::Socket& udp_socket, std::atomic<bool>& stop)
+void route_to_udp(can::Socket& can_socket, udp::Socket& udp_socket, std::atomic<bool>& stop,
+    bool timestamp)
 {
-  can_frame frame;
-  while (!stop.load()) {
-    if (can_socket.receive(&frame) == sizeof(can_frame)) {
-      udp_socket.transmit(&frame);
+  if (timestamp) {
+    // Pass-through of original receive timestamp for more accurate timing information of frames
+    std::vector<std::uint8_t> buffer(sizeof(std::uint64_t) + sizeof(can_frame));
+    auto* time = reinterpret_cast<std::uint64_t*>(buffer.data());
+    auto* frame = reinterpret_cast<can_frame*>(buffer.data() + sizeof(std::uint64_t));
+    while (!stop.load()) {
+      // Ancillary data (timestamp) is not part of socket payload
+      if (can_socket.receive(frame, time) == sizeof(can_frame)) {
+        udp_socket.transmit(buffer);
+      }
     }
   }
-}
-
-
-void route_to_udp_with_timestamp(can::Socket& can_socket, udp::Socket& udp_socket,
-    std::atomic<bool>& stop)
-{
-  // Pass-through of original receive timestamp for more accurate timing information of frames
-  std::vector<std::uint8_t> buffer(sizeof(std::uint64_t) + sizeof(can_frame));
-  auto* time = reinterpret_cast<std::uint64_t*>(buffer.data());
-  auto* frame = reinterpret_cast<can_frame*>(buffer.data() + sizeof(std::uint64_t));
-  while (!stop.load()) {
-    // Ancillary data (timestamp) is not part of socket payload
-    if (can_socket.receive(frame, time) == sizeof(can_frame)) {
-      udp_socket.transmit(buffer);
+  else {
+    can_frame frame;
+    while (!stop.load()) {
+      if (can_socket.receive(&frame) == sizeof(can_frame)) {
+        udp_socket.transmit(&frame);
+      }
     }
   }
 }
@@ -91,7 +90,7 @@ std::tuple<std::string, std::string, std::uint16_t, bool, bool> parse_args(int a
 int main(int argc, char** argv)
 {
   bool realtime;
-  bool timestamp; // Pass original CAN receive timestamp to remote device
+  bool timestamp;  // Pass original CAN receive timestamp to remote device
   std::string remote_ip;
   std::uint16_t data_port;
   std::string can_device;
@@ -118,14 +117,8 @@ int main(int argc, char** argv)
       << data_port << "\nPress enter to stop..." << std::endl;
 
   std::atomic<bool> stop{false};
-  std::thread can_to_udp{};
-  if (timestamp) {
-    can_to_udp = std::thread{&route_to_udp_with_timestamp, std::ref(can_socket),
-        std::ref(udp_socket), std::ref(stop)};
-  }
-  else {
-    can_to_udp = std::thread{&route_to_udp, std::ref(can_socket), std::ref(udp_socket), std::ref(stop)};
-  }
+  std::thread can_to_udp{&route_to_udp, std::ref(can_socket), std::ref(udp_socket), std::ref(stop),
+      timestamp};
   std::thread udp_to_can{&route_to_can, std::ref(can_socket), std::ref(udp_socket), std::ref(stop)};
 
   if (realtime) {

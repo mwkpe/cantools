@@ -39,10 +39,11 @@ void print_frame(const can_frame& frame)
 {
   std::cout << "id: " << std::hex << frame.can_id << std::dec << ", dlc: "
       << static_cast<int>(frame.can_dlc) << ", data: " << std::hex << std::setfill('0');
-  for (int i=frame.can_dlc-1; i>=0; --i) {
+  for (int i=frame.can_dlc-1; i>0; --i) {
     std::cout << std::setw(2) << static_cast<int>(frame.data[i]) << ' ';
   }
-  std::cout << '\n';
+  if (frame.can_dlc > 0)
+    std::cout << std::setw(2) << static_cast<int>(frame.data[0]) << '\n';
   std::cout.copyfmt(std::ios{nullptr});  // Reset format state
 }
 

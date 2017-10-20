@@ -18,7 +18,7 @@ WIP
 
 Usage
 ---
-| Tool | Parameter | short | required | default | Description |
+| Tool | Parameter | Short | Required | Default | Description |
 | ---- | --------- | :---: | :------: | ------- | ----------- |
 | cantx | device<br>id<br>data<br>cycle | <br><br><br> | <br>✓<br><br><br> | can0<br><br>00<br>-1 (send once) | CAN device<br>Frame ID<br>Hex data string<br>Repetition time in ms |
 | canprint | device | | | can0 | CAN device |

@@ -35,7 +35,7 @@ $ ./cantx --device=can0 --id=42 --data=0102030405060708 --cycle=100
 $ ./cangw --listen --ip=192.168.1.5 --port=30001
 
 # Same but using short options
-$ ./cangw -li 192.168.1.5 -p=30001
+$ ./cangw -li 192.168.1.5 -p 30001
 
 # Route frames between interfaces and add timestamps to UDP payload
 $ ./cangw -lsti 192.168.1.5 -p 30001

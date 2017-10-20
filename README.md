@@ -22,7 +22,7 @@ Usage
 | ---- | --------- | :---: | :------: | ------- | ----------- |
 | cantx | device<br>id<br>data<br>cycle | <br><br><br> | <br>✓<br><br><br> | can0<br><br>00<br>-1 (send once) | CAN device<br>Frame ID<br>Hex data string<br>Repetition time in ms |
 | canprint | device | | | can0 | CAN device |
-| cangw | realtime<br>timestamp<br>device<br>ip<br>port | -r<br>-t<br>-d<br>-i<br>-p | <br><br><br>✓<br>✓ | false<br>false<br>can0<br><br><br> | Enable realtime scheduling policy<br>Prefix UDP packets with a timestamp<br>CAN device<br>IP of remote device<br>UDP port |
+| cangw | realtime<br>timestamp<br>device<br>ip<br>port | -r<br>-t<br>-d<br>-i<br>-p | <br><br><br>✓<br>✓ | false<br>false<br>can0<br><br><br> | Enable realtime scheduling policy<br>Prefix UDP payload with a timestamp<br>CAN device<br>IP of remote device<br>UDP port |
 
 
 

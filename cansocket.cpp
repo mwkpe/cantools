@@ -21,7 +21,7 @@ class Scope_guard
 {
 public:
   Scope_guard(int fd) : fd_{fd} {}
-  ~Scope_guard() { if (fd_ != -1) ::close(fd_); }
+  ~Scope_guard() { if (fd_ != -1) ::close(fd_); fd_ = -1; }
   Scope_guard(const Scope_guard&) = delete;
   Scope_guard& operator=(const Scope_guard&) = delete;
   void release() { fd_  = -1; }

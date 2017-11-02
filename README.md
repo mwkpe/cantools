@@ -1,5 +1,5 @@
 # cantools
-A collection of CLI tools for receiving and transmitting CAN frames
+A collection of CLI tools for receiving and transmitting CAN frames using Linux SocketCAN
 
 Description
 ---

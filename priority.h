@@ -15,7 +15,7 @@ namespace priority
 {
 
 
-bool set_realtime(std::thread::native_handle_type handle)
+inline bool set_realtime(std::thread::native_handle_type handle)
 {
   sched_param sch;
   auto priority = sched_get_priority_max(SCHED_FIFO);
@@ -24,7 +24,7 @@ bool set_realtime(std::thread::native_handle_type handle)
 }
 
 
-bool is_realtime(std::thread::native_handle_type handle)
+inline bool is_realtime(std::thread::native_handle_type handle)
 {
   sched_param sch;
   int policy;
@@ -34,7 +34,7 @@ bool is_realtime(std::thread::native_handle_type handle)
 }
 
 
-int current_priority(std::thread::native_handle_type handle)
+inline int current_priority(std::thread::native_handle_type handle)
 {
   sched_param sch;
   int policy;

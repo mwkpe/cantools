@@ -30,6 +30,8 @@ namespace
 {
 
 
+#pragma pack(push, 1)
+
 struct Frame_veh_state
 {
   std::uint8_t crc;
@@ -42,7 +44,7 @@ struct Frame_veh_state
   std::uint8_t wiper_position_2 : 2;
 };
 
-struct Frame_flux_state
+struct Frame_flux
 {
   std::uint32_t power_level;
   std::uint32_t dispersal_rate;
@@ -61,6 +63,32 @@ struct Frame_date_time
   std::uint8_t minute_0 : 2;
   std::uint8_t minute_1 : 4;
 };
+
+
+struct Frame_fuel
+{
+  std::uint8_t fuel_type : 1;
+  std::uint8_t reserved : 7;
+  union {
+    struct {
+      std::uint8_t e_range;
+      std::uint8_t e_cons_0;
+      std::uint8_t e_cons_1 : 2;
+      std::uint8_t bat_volt_0 : 6;
+      std::uint8_t bat_volt_1 : 6;
+      std::uint8_t charging : 1;
+      std::uint8_t super_charging : 1;
+    } m0;
+    struct {
+      std::uint8_t gas_range_0;
+      std::uint8_t gas_range_1 : 2;
+      std::uint8_t gas_cons_0 : 6;
+      std::uint8_t gas_cons_1 : 4;
+    } m1;
+  } mux;
+};
+
+#pragma pack(pop)
 
 
 }  // namespace
@@ -85,12 +113,12 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port, boo
   veh_state_data->wiper_position_1 = 2122 >> 4;
   veh_state_data->wiper_position_2 = 2122 >> 12;
 
-  can_frame flux_state{0};
-  flux_state.can_id = 233;
-  flux_state.can_dlc = 6;
-  auto* flux_state_data = reinterpret_cast<Frame_flux_state*>(flux_state.data);
-  flux_state_data->power_level = 1210000000;
-  flux_state_data->dispersal_rate = 7743;
+  can_frame flux{0};
+  flux.can_id = 233;
+  flux.can_dlc = 6;
+  auto* flux_data = reinterpret_cast<Frame_flux*>(flux.data);
+  flux_data->power_level = 1210000000;
+  flux_data->dispersal_rate = 7743;
 
   can_frame date_time{0};
   date_time.can_id = 245;
@@ -104,6 +132,27 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port, boo
   date_time_data->hour = 6;
   date_time_data->minute_0 = 31;
   date_time_data->minute_1 = 31 >> 2;
+
+  can_frame fuel{0};
+  fuel.can_id = 502;
+  fuel.can_dlc = 5;
+  Frame_fuel electric;
+  electric.mux.m0.e_range = 149;
+  electric.mux.m0.e_cons_0 = 354;
+  electric.mux.m0.e_cons_1 = 354 >> 8;
+  electric.mux.m0.bat_volt_0 = 3751;
+  electric.mux.m0.bat_volt_1 = 3751 >> 6;
+  electric.mux.m0.charging = 0;
+  electric.mux.m0.super_charging = 0;
+  Frame_fuel gasoline;
+  gasoline.mux.m1.gas_range_0 = 381;
+  gasoline.mux.m1.gas_range_1 = 381 >> 8;
+  gasoline.mux.m1.gas_cons_0 = 178;
+  gasoline.mux.m1.gas_cons_1 = 178 >> 6;
+  auto* fuel_data = reinterpret_cast<Frame_fuel*>(fuel.data);
+  fuel_data->reserved = 0;
+  fuel_data->fuel_type = 0;
+  fuel_data->mux = electric.mux;
 
 #pragma GCC diagnostic pop
 
@@ -142,13 +191,21 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port, boo
       udp_socket.transmit(&veh_state);
     }
     if (time_ms % 100 == 0) {
-      udp_socket.transmit(&flux_state);
+      udp_socket.transmit(&flux);
     }
     if (time_ms % 225 == 0) {
       udp_socket.transmit(&radar);
     }
     if (time_ms % 1333 == 0) {
       udp_socket.transmit(&date_time);
+    }
+    if (time_ms % 500 == 0) {
+      fuel_data->fuel_type = ~fuel_data->fuel_type;
+      if (fuel_data->fuel_type == 0)
+        fuel_data->mux = electric.mux;
+      else
+        fuel_data->mux = gasoline.mux;
+      udp_socket.transmit(&fuel);
     }
   };
 
@@ -162,7 +219,7 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port, boo
     }
     if (time_ms % 100 == 0) {
       *time_buffer = time_ms;
-      std::memcpy(frame_buffer, &flux_state, sizeof(can_frame));
+      std::memcpy(frame_buffer, &flux, sizeof(can_frame));
       udp_socket.transmit(buffer);
     }
     if (time_ms % 225 == 0) {
@@ -173,6 +230,27 @@ void simulate(std::atomic<bool>& stop, std::string&& ip, std::uint16_t port, boo
     if (time_ms % 1333 == 0) {
       *time_buffer = time_ms;
       std::memcpy(frame_buffer, &date_time, sizeof(can_frame));
+      udp_socket.transmit(buffer);
+    }
+    if (time_ms % 500 == 0) {
+      fuel_data->fuel_type = ~fuel_data->fuel_type;
+      if (fuel_data->fuel_type == 0) {
+        // Update range
+        if (electric.mux.m0.super_charging == 1) electric.mux.m0.e_range += 4;
+        else if (electric.mux.m0.charging == 1) electric.mux.m0.e_range++;
+        else electric.mux.m0.e_range--;
+        // Set charging state
+        if (electric.mux.m0.e_range == 0) electric.mux.m0.charging = 1;
+        if (electric.mux.m0.charging == 1 && electric.mux.m0.e_range == 100) electric.mux.m0.super_charging = 1;
+        else if (electric.mux.m0.e_range > 200) electric.mux.m0.charging = electric.mux.m0.super_charging = 0;
+        fuel_data->mux = electric.mux;
+      }
+      else {
+        fuel_data->mux = gasoline.mux;
+      }
+
+      *time_buffer = time_ms;
+      std::memcpy(frame_buffer, &fuel, sizeof(can_frame));
       udp_socket.transmit(buffer);
     }
   };

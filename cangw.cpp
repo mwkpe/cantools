@@ -159,13 +159,24 @@ int main(int argc, char** argv)
 
   if (options.realtime) {
     // Only attempt to set active threads to realtime scheduling policy
-    if ((!listener.joinable() || priority::set_realtime(listener.native_handle())) &&
-        (!sender.joinable() || priority::set_realtime(sender.native_handle())))
+    bool success = false;
+
+    if (listener.joinable() && sender.joinable()) {
+      success = priority::set_realtime(listener.native_handle()) &&
+          priority::set_realtime(sender.native_handle());
+    }
+    else if (listener.joinable()) {
+      success = priority::set_realtime(listener.native_handle())
+    }
+    else if (sender.joinable()) {
+      success = priority::set_realtime(sender.native_handle())
+    }
+
+    if (success)
       std::cout << "Gateway thread(s) set to realtime scheduling policy" << std::endl;
     else
       std::cout << "Warning: Could not set scheduling policy, forgot sudo?" << std::endl;
   }
-
   std::cin.ignore();  // Wait in main thread
 
   std::cout << "Stopping gateway..." << std::endl;

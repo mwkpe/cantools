@@ -12,10 +12,6 @@ Build
 ---
 Use `make` to build all tools or `make cangw` etc.
 
-Status
----
-WIP
-
 Usage
 ---
 | Tool | Options | Short | Required | Default | Description |

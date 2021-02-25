@@ -166,10 +166,10 @@ int main(int argc, char** argv)
           priority::set_realtime(sender.native_handle());
     }
     else if (listener.joinable()) {
-      success = priority::set_realtime(listener.native_handle())
+      success = priority::set_realtime(listener.native_handle());
     }
     else if (sender.joinable()) {
-      success = priority::set_realtime(sender.native_handle())
+      success = priority::set_realtime(sender.native_handle());
     }
 
     if (success)
